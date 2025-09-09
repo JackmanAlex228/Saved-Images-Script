@@ -46,8 +46,10 @@ def main():
       PROCESS_PATHS = env_vars['process_paths']
   except FileNotFoundError:
       print("The config.yaml file was not found.")
+      logger.info("The config.yaml file was not found.")
   except yaml.YAMLError as exc:
       print("There was an error loading the YAML file:", exc)
+      logger.info("There was an error loading the YAML file:", exc)
 
   # Initialize client
   client = Client()
