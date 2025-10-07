@@ -1,28 +1,42 @@
 from atproto import Client
 from loader import Loader
 from pathlib import Path
+import difPy
 import requests
 import logging
-import glob
 import yaml
+import os
 
 # Finds files of duplicate names withing given directories
-def file_exists_in_paths(filename: str, process_paths: list[str]) -> str | bool:
-  for path in process_paths:
-    if path.endswith('/*'):
-      # Expand child directories recursively
-      base = Path(path[:-2]) # remove /*
-      for subdir in base.iterdir():
-        if subdir.is_dir():
-          # Look for the file recursively inside each subdir
-          if any(subdir.rglob(filename)):
-            return subdir
-    else:
-      dir_path = Path(path)
-      if (dir_path / filename).exists():
-        return dir_path
+def compare_filenames(filename: str, path: list[str]) -> str | bool:
+  dir_path = Path(path)
+  if (dir_path / filename).exists():
+    return dir_path
   return None
 
+# Finds images with duplicate appearance and sends the lower-quality version to ./duplicates
+def compare_images(DOWNLOAD_PATH):
+
+  # Starting logger
+  logging.basicConfig(
+    filename='compare.log',
+    level=logging.INFO,
+    filemode="w"
+  )
+  logger = logging.getLogger(__name__)
+  logger.info('Started')
+
+  # Check whether the download path exists then compare images
+  if not os.path.exists(DOWNLOAD_PATH):
+    print(f"Error: Directory {DOWNLOAD_PATH} not found")
+  else:
+    dif = difPy.build(DOWNLOAD_PATH)
+    search = difPy.search(dif)
+    print(f"Duplicates found:\n {search.result}")
+    logger.info("Duplicates found:\n", search.result)
+    print(f"Moving to {DOWNLOAD_PATH}/duplicates...")
+    logger.info("Moving to {DOWNLOAD_PATH}/duplicates...")
+    search.move_to(destination_path='./duplicates')
 
 def main():
 
@@ -43,7 +57,6 @@ def main():
       PASSWORD = env_vars['password']
       DOWNLOAD_PATH = env_vars['download_path']
       LIMIT = env_vars['limit']
-      PROCESS_PATHS = env_vars['process_paths']
   except FileNotFoundError:
       print("The config.yaml file was not found.")
       logger.info("The config.yaml file was not found.")
@@ -85,6 +98,7 @@ def main():
   print(f"Total liked posts: {len(all_likes)}\n")
   with Loader(f"Downloading media files..."):
     for item in all_likes[:int(LIMIT)]:
+      image_link = ""
       try:
         if hasattr(item.post.embed, 'images'):
           image_link = item.post.embed.images[0].fullsize
@@ -96,8 +110,8 @@ def main():
       img_data = requests.get(image_link).content
       filename = f'{item.post.uri.split("/")[-1]}.png'
 
-      # If an image of the same filename is in the process path(s), skip it
-      path_of_dupe = file_exists_in_paths(filename, PROCESS_PATHS)
+      # If an image of the same filename is in the path, skip it
+      path_of_dupe = compare_filenames(filename, DOWNLOAD_PATH)
       if path_of_dupe:
         logger.info(f'File {filename} already exists in path {path_of_dupe}')
         duplicates.append(filename)
@@ -110,6 +124,10 @@ def main():
   logger.info('Finished!')
   print(f"Finished!")
   print(f"There are {len(duplicates)} duplicate files in the download path.")
+  
+  # Check for duplicate images within the download folder
+  with Loader(f"Moving duplicate images..."):
+    compare_images(DOWNLOAD_PATH)
 
 if __name__ == '__main__':
   main()
