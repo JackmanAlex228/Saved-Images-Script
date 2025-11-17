@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use anyhow::{Context, Result};
 
+mod cache;
+
 #[derive(Parser, Debug)]
 #[command(name = "image_organizer")]
 #[command(about = "Download and organize images from social media", long_about = None)]
@@ -43,6 +45,12 @@ enum Commands {
         /// Run duplicate detection
         #[arg(long)]
         find_duplicates: bool,
+    },
+    /// Rebuild the download cache by scanning the directory
+    RebuildCache {
+        /// Directory to scan (defaults to config download_path)
+        #[arg(short, long)]
+        directory: Option<PathBuf>,
     },
 }
 
@@ -102,6 +110,18 @@ fn main() -> Result<()> {
             } else {
                 organize_files(&download_path)?;
             }
+        }
+        Commands::RebuildCache { directory } => {
+            let config = read_config()?;
+            let dir = directory.unwrap_or_else(|| PathBuf::from(&config.download_path));
+
+            println!("Rebuilding cache for directory: {:?}", dir);
+            let cache = cache::build_cache(&dir)?;
+
+            let cache_file = dir.join(".cache.json");
+            cache::save_cache(&cache, &cache_file)?;
+
+            println!("Cache rebuild complete!");
         }
     }
 
