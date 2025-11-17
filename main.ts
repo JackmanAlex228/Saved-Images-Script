@@ -10,18 +10,48 @@ async function readYamlConfigFile(filePath: string) {
   return fileContents;
 }
 
+interface Config {
+  handle: string;
+  password: string;
+  download_path: string;
+  limit: number;
+}
+
 async function main() {
-  const config = await readYamlConfigFile('config.yaml');
+  try {
+    const config = await readYamlConfigFile('config.yaml');
+    const data = yaml.load(config) as Config;
 
-  interface Config {
-    handle: string,
-    password: string,
-    downloadPath: string,
-    limit: number
-  };
+    console.log('Connecting to AT Protocol...');
+    console.log('Handle:', data.handle);
+    console.log('Download path:', data.download_path);
 
-  const data = yaml.load(config) as Config;
-  console.log(data.handle)
+    // Create download directory if it doesn't exist
+    if (!existsSync(data.download_path)) {
+      await fs.mkdir(data.download_path, { recursive: true });
+      console.log('Created download directory');
+    }
+
+    // Initialize AT Protocol agent
+    const agent = new AtpAgent({
+      service: 'https://bsky.social'
+    });
+
+    await agent.login({
+      identifier: data.handle,
+      password: data.password
+    });
+
+    console.log('Logged in successfully!');
+    console.log(`Will download up to ${data.limit} images`);
+
+    // TODO: Fetch feed and download images
+    console.log('Image download functionality coming soon...');
+
+  } catch (error) {
+    console.error('Error:', error);
+    process.exit(1);
+  }
 }
 
 main()
