@@ -102,8 +102,10 @@ def main():
       try:
         if hasattr(item.post.embed, 'images'):
           image_link = item.post.embed.images[0].fullsize
-        if hasattr(item.post.embed, 'media'):
+        elif hasattr(item.post.embed, 'media'):
           image_link = item.post.embed.media.images[0].fullsize
+        else:
+          continue
       except (IndexError, AttributeError):
         logger.info(f"No image found or post {item.post.uri}")
         continue
