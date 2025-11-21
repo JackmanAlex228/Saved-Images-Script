@@ -1,8 +1,0 @@
-config.yaml
-*.log
-/test-images
-/duplicates
-
-# Added by cargo
-
-/target
